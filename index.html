@@ -1,1172 +1,144 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sanaré | Monitor de Infusión (Wearable)</title>
-  <style>
-    :root{
-      --bg:#ffffff;
-      --panel:#ffffff;
-      --text:#1f2937;
-      --muted:#6b7280;
-      --border:#e5e7eb;
-      --soft:#f7f7fb;
-      --brand1:#f2b6ad;   /* salmón suave */
-      --brand2:#d48a82;   /* salmón medio */
-      --brand3:#b66a64;   /* salmón profundo */
-      --good:#16a34a;
-      --warn:#f59e0b;
-      --bad:#dc2626;
-      --shadow: 0 10px 25px rgba(17,24,39,.08);
-      --radius:18px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-    }
-
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      color:var(--text);
-      background:
-        radial-gradient(900px 400px at 10% -10%, rgba(242,182,173,.45), transparent 60%),
-        radial-gradient(900px 400px at 90% 0%, rgba(212,138,130,.25), transparent 55%),
-        linear-gradient(#fff, #fff);
-    }
-
-    .wrap{max-width:1200px;margin:0 auto;padding:20px 18px 32px}
-
-    header{
-      display:flex;align-items:center;justify-content:space-between;gap:14px;
-      padding:14px 16px;
-      background:rgba(255,255,255,.8);
-      backdrop-filter: blur(10px);
-      border:1px solid var(--border);
-      border-radius:22px;
-      box-shadow: var(--shadow);
-    }
-
-    .brand{
-      display:flex;align-items:center;gap:12px;min-width:260px;
-    }
-    .brand img{
-      height:38px; width:auto; display:block;
-      filter: drop-shadow(0 6px 16px rgba(182,106,100,.18));
-    }
-    .brand .subtitle{
-      display:flex;flex-direction:column;line-height:1.15;
-    }
-    .brand .subtitle strong{font-size:13px}
-    .brand .subtitle span{font-size:12px;color:var(--muted)}
-
-    .top-actions{
-      display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;
-    }
-
-    .pill{
-      display:flex;align-items:center;gap:8px;
-      padding:10px 12px;
-      border:1px solid var(--border);
-      background:var(--panel);
-      border-radius:999px;
-      font-size:13px;
-      box-shadow: 0 6px 18px rgba(17,24,39,.05);
-    }
-    .dot{
-      width:10px;height:10px;border-radius:50%;
-      background:var(--muted);
-      box-shadow:0 0 0 6px rgba(107,114,128,.15);
-    }
-    .dot.ok{background:var(--good); box-shadow:0 0 0 6px rgba(22,163,74,.16)}
-    .dot.warn{background:var(--warn); box-shadow:0 0 0 6px rgba(245,158,11,.18)}
-    .dot.bad{background:var(--bad); box-shadow:0 0 0 6px rgba(220,38,38,.15)}
-
-    select, input, button{
-      font-family:var(--sans);
-    }
-
-    .btn{
-      border:1px solid var(--border);
-      background:linear-gradient(135deg, rgba(242,182,173,.55), rgba(212,138,130,.35));
-      color:#3b1f1d;
-      padding:10px 12px;
-      border-radius:999px;
-      cursor:pointer;
-      font-weight:600;
-      font-size:13px;
-      transition: transform .06s ease, box-shadow .2s ease;
-      box-shadow: 0 10px 22px rgba(182,106,100,.16);
-    }
-    .btn:hover{box-shadow: 0 14px 30px rgba(182,106,100,.20)}
-    .btn:active{transform: translateY(1px)}
-    .btn.secondary{
-      background:#fff;
-      box-shadow:none;
-      font-weight:600;
-      color:var(--text);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap:14px;
-      margin-top:14px;
-    }
-
-    .panel{
-      background:rgba(255,255,255,.9);
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .panel .hd{
-      padding:14px 16px;
-      border-bottom:1px solid var(--border);
-      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-      background:
-        linear-gradient(180deg, rgba(242,182,173,.18), transparent);
-    }
-    .panel .hd h2{
-      margin:0;
-      font-size:14px;
-      letter-spacing:.2px;
-    }
-    .panel .hd p{margin:4px 0 0;color:var(--muted);font-size:12px}
-    .panel .bd{padding:14px 16px}
-
-    .cards{
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap:12px;
-    }
-    @media (max-width: 980px){
-      .grid{grid-template-columns:1fr}
-      .cards{grid-template-columns: repeat(2, minmax(0, 1fr))}
-      .brand{min-width:auto}
-    }
-    @media (max-width: 560px){
-      .cards{grid-template-columns:1fr}
-    }
-
-    .card{
-      border:1px solid var(--border);
-      border-radius:16px;
-      background:linear-gradient(180deg, #fff, #fff);
-      padding:12px 12px 10px;
-      box-shadow: 0 10px 20px rgba(17,24,39,.05);
-    }
-    .card .row{
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-    }
-    .label{
-      font-size:12px;color:var(--muted);
-      display:flex;align-items:center;gap:8px;
-    }
-    .badge{
-      font-size:11px;
-      padding:5px 8px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:var(--soft);
-      color:var(--muted);
-      white-space:nowrap;
-    }
-    .badge.good{color:var(--good); border-color:rgba(22,163,74,.25); background:rgba(22,163,74,.08)}
-    .badge.warn{color:var(--warn); border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.10)}
-    .badge.bad{color:var(--bad); border-color:rgba(220,38,38,.25); background:rgba(220,38,38,.09)}
-
-    .value{
-      font-size:22px;font-weight:800;letter-spacing:-.2px;margin-top:6px;
-    }
-    .unit{font-size:12px;color:var(--muted);font-weight:600;margin-left:4px}
-    .mini{
-      margin-top:10px;
-      width:100%;
-      height:40px;
-      border-radius:12px;
-      background:linear-gradient(180deg, rgba(242,182,173,.12), rgba(212,138,130,.06));
-      border:1px solid rgba(229,231,235,.8);
-    }
-
-    .split{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:12px;
-    }
-
-    .kvs{
-      display:grid; grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-    .kv{
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:10px 10px;
-      background: #fff;
-    }
-    .kv .k{font-size:12px;color:var(--muted)}
-    .kv .v{margin-top:4px;font-weight:800}
-    .kv .v small{font-weight:700;color:var(--muted)}
-
-    .chartWrap{
-      border:1px solid var(--border);
-      border-radius:16px;
-      background:#fff;
-      padding:10px;
-    }
-    canvas.big{
-      width:100%; height:220px; display:block;
-    }
-
-    .controls{
-      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;
-      margin-top:10px;
-    }
-    .controls .left, .controls .right{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .field{
-      display:flex;gap:8px;align-items:center;
-      padding:9px 10px;
-      border:1px solid var(--border);
-      border-radius:999px;
-      background:#fff;
-      font-size:13px;
-      color:var(--muted);
-    }
-    .field select, .field input{
-      border:none; outline:none; background:transparent;
-      font-size:13px; color:var(--text);
-    }
-    .field input{width:86px}
-    .field small{color:var(--muted)}
-    .hr{height:1px;background:var(--border);margin:12px 0}
-
-    .alerts{
-      display:flex;flex-direction:column;gap:10px;
-    }
-    .alert{
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:10px 12px;
-      background:#fff;
-    }
-    .alert .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .alert .title{font-weight:800;font-size:13px}
-    .alert .meta{font-size:12px;color:var(--muted)}
-    .alert.good{border-color:rgba(22,163,74,.25); background:rgba(22,163,74,.06)}
-    .alert.warn{border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.08)}
-    .alert.bad{border-color:rgba(220,38,38,.25); background:rgba(220,38,38,.07)}
-
-    .log{
-      border:1px solid var(--border);
-      border-radius:16px;
-      background:#fff;
-      overflow:hidden;
-    }
-    .log .head{
-      padding:10px 12px;
-      border-bottom:1px solid var(--border);
-      font-weight:800;
-      font-size:13px;
-      background:linear-gradient(180deg, rgba(242,182,173,.16), transparent);
-      display:flex;justify-content:space-between;align-items:center;
-    }
-    .log .body{
-      max-height:180px;
-      overflow:auto;
-      padding:8px 12px;
-      font-family:var(--mono);
-      font-size:11px;
-      color:#374151;
-      line-height:1.5;
-    }
-    .log .body div{padding:4px 0;border-bottom:1px dashed rgba(229,231,235,.9)}
-    .muted{color:var(--muted)}
-
-    .footer-note{
-      margin-top:12px;
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.4;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sanare Pro | Monitor de Telemetría Clínica</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <!-- Logo Sanaré -->
-        <img src="logo-sanare.png" alt="Sanaré" onerror="this.style.display='none'">
-        <div class="subtitle">
-          <strong>Monitor de Infusión (Wearable)</strong>
-          <span>FC, SpO₂, FR, PA, T°, Actividad/Postura, ECG (1 derivación)</span>
+
+  <!-- El modal ha sido eliminado para conectarse automáticamente con la interfaz de registro principal -->
+
+  <header class="main-header">
+    <div class="header-left">
+      <div class="clinical-logo">
+        <span class="logo-text-bold">SANARÉ</span>
+        <span class="logo-subtitle">MONITOR DE SIGNOS VITALES (OHR)</span>
+      </div>
+    </div>
+    
+    <div class="header-right">
+      <!-- Datos del Paciente Siempre Visibles -->
+      <div class="patient-quick-info" id="patient-info-card" style="border: none;">
+        <div class="patient-avatar-small" style="background: #fff; border: 1.5px solid #c2410c; color: #c2410c;" id="avatar-initial">S</div>
+        <div class="patient-meta-text">
+          <strong id="display-p-name">Esperando paciente...</strong>
+          <span id="display-p-details">Por favor registre datos</span>
         </div>
       </div>
 
-      <div class="top-actions">
-        <div class="pill" title="Estado de conexión">
-          <span id="connDot" class="dot warn"></span>
-          <span id="connText">Sin conexión (modo demo)</span>
-        </div>
-
-        <div class="pill">
-          <span class="muted">Paciente</span>
-          <select id="patientSel" style="border:none;outline:none;background:transparent;font-weight:800;color:var(--text)">
-            <option value="P-001">P-001</option>
-            <option value="P-002">P-002</option>
-            <option value="P-003">P-003</option>
-          </select>
-        </div>
-
-        <button class="btn secondary" id="btnConnect">Conectar (WebSocket)</button>
-        <button class="btn" id="btnDemo">Iniciar demo</button>
+      <div class="connection-status-pill" id="btn-connect" style="margin-left: 20px;">
+        <div class="status-indicator-dot" id="status-indicator"></div>
+        <span id="device-connection-state">Sin Sensor</span>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <div class="grid">
-      <!-- IZQUIERDA -->
-      <section class="panel">
-        <div class="hd">
-          <div>
-            <h2>Signos vitales en tiempo real</h2>
-            <p>Tarjetas con tendencia + gráfico principal con métricas seleccionables.</p>
-          </div>
-          <div class="badge" id="overallBadge">Sin evaluación</div>
+  <div class="dashboard-grid">
+    
+    <div class="dashboard-main">
+      
+      <section class="section-container">
+        <div class="section-header-row">
+          <h2 class="section-label">Signos vitales en tiempo real</h2>
+          <div class="vital-status-badge">Telemetría Activa</div>
         </div>
 
-        <div class="bd">
-          <div class="cards">
-            <!-- FC -->
-            <div class="card">
-              <div class="row">
-                <div class="label">Frecuencia cardiaca (FC)</div>
-                <div class="badge" id="b_hr">—</div>
-              </div>
-              <div class="value"><span id="v_hr">—</span><span class="unit">lpm</span></div>
-              <canvas class="mini" id="s_hr" width="420" height="120"></canvas>
+        <div class="vitals-cards-layout">
+          <div class="vital-tile hr-tile">
+            <div class="tile-label">Frecuencia cardíaca (FC)</div>
+            <div class="tile-value-row">
+              <span class="tile-value" style="color: var(--danger);" id="val-hr">--</span>
+              <span class="tile-unit">bpm</span>
             </div>
-
-            <!-- SpO2 -->
-            <div class="card">
-              <div class="row">
-                <div class="label">Saturación (SpO₂)</div>
-                <div class="badge" id="b_spo2">—</div>
-              </div>
-              <div class="value"><span id="v_spo2">—</span><span class="unit">%</span></div>
-              <canvas class="mini" id="s_spo2" width="420" height="120"></canvas>
-            </div>
-
-            <!-- FR -->
-            <div class="card">
-              <div class="row">
-                <div class="label">Frecuencia respiratoria (FR)</div>
-                <div class="badge" id="b_rr">—</div>
-              </div>
-              <div class="value"><span id="v_rr">—</span><span class="unit">rpm</span></div>
-              <canvas class="mini" id="s_rr" width="420" height="120"></canvas>
-            </div>
-
-            <!-- PA -->
-            <div class="card">
-              <div class="row">
-                <div class="label">Presión arterial (PA)</div>
-                <div class="badge" id="b_bp">—</div>
-              </div>
-              <div class="value" style="font-size:20px">
-                <span id="v_bp">—/—</span><span class="unit">mmHg</span>
-              </div>
-              <canvas class="mini" id="s_bp" width="420" height="120"></canvas>
-            </div>
-
-            <!-- Temp -->
-            <div class="card">
-              <div class="row">
-                <div class="label">Temperatura</div>
-                <div class="badge" id="b_temp">—</div>
-              </div>
-              <div class="value"><span id="v_temp">—</span><span class="unit">°C</span></div>
-              <canvas class="mini" id="s_temp" width="420" height="120"></canvas>
-            </div>
-
-            <!-- Actividad / Postura -->
-            <div class="card">
-              <div class="row">
-                <div class="label">Actividad / Postura</div>
-                <div class="badge" id="b_act">—</div>
-              </div>
-              <div class="value" style="font-size:18px">
-                <span id="v_posture">—</span>
-                <span class="unit" id="v_motion">—</span>
-              </div>
-              <canvas class="mini" id="s_act" width="420" height="120"></canvas>
-            </div>
+            <div class="tile-footer" id="val-lastsync">Sinc: --:--</div>
           </div>
 
-          <div class="hr"></div>
-
-          <div class="chartWrap">
-            <canvas class="big" id="bigChart" width="1100" height="320"></canvas>
-
-            <div class="controls">
-              <div class="left">
-                <div class="field">
-                  <small>Métrica</small>
-                  <select id="metricSel">
-                    <option value="hr">FC (lpm)</option>
-                    <option value="spo2">SpO₂ (%)</option>
-                    <option value="rr">FR (rpm)</option>
-                    <option value="sys">PA Sistólica</option>
-                    <option value="dia">PA Diastólica</option>
-                    <option value="temp">Temp (°C)</option>
-                    <option value="motion">Actividad (0-3)</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <small>Ventana</small>
-                  <select id="windowSel">
-                    <option value="60">60 min</option>
-                    <option value="30">30 min</option>
-                    <option value="15">15 min</option>
-                    <option value="5">5 min</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="right">
-                <div class="field" title="Umbral bajo (alarma)">
-                  <small>Bajo</small>
-                  <input id="thrLow" type="number" step="0.1" />
-                </div>
-                <div class="field" title="Umbral alto (alarma)">
-                  <small>Alto</small>
-                  <input id="thrHigh" type="number" step="0.1" />
-                </div>
-                <button class="btn secondary" id="btnReset">Reset baseline</button>
-              </div>
+          <div class="vital-tile spo2-tile">
+            <div class="tile-label">Saturación (SpO₂)</div>
+            <div class="tile-value-row">
+              <span class="tile-value" style="color: var(--primary);" id="val-spo2">--</span>
+              <span class="tile-unit">%</span>
             </div>
+            <div class="tile-footer" style="color: var(--success); font-weight: 700;">NORMAL</div>
           </div>
 
-          <div class="footer-note">
-            <strong>Nota:</strong> Esta interfaz es para visualización/alertas operativas.
-            Ajusta umbrales según tu protocolo clínico y la población del paciente.
+          <div class="vital-tile bp-tile">
+            <div class="tile-label-row">
+              <div class="tile-label">Presión arterial (PA)</div>
+              <button id="btn-edit-bp" class="tile-edit-btn">EDITAR</button>
+            </div>
+            <div class="tile-value-row">
+              <span class="tile-value" id="val-bp">--/--</span>
+              <span class="tile-unit">mmHg</span>
+            </div>
+            
+            <div id="bp-edit-form" class="bp-inline-form" style="display: none;">
+              <div class="bp-inputs-grid">
+                <input type="number" id="inp-bp-sys" placeholder="SIS">
+                <span class="bp-sep">/</span>
+                <input type="number" id="inp-bp-dia" placeholder="DIA">
+              </div>
+              <button id="btn-save-bp" class="btn-save-bp-inline">Registrar</button>
+            </div>
+
+            <div class="tile-footer-status">
+              <span id="bp-badge" class="bp-status-text" style="color: var(--warning);">PENDIENTE</span>
+              <span id="bp-classification" class="bp-meta-text">Sin registro</span>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- DERECHA -->
-      <aside class="split">
-        <section class="panel">
-          <div class="hd">
-            <div>
-              <h2>Eventos críticos de infusión</h2>
-              <p>Reglas rápidas para patrón de hipersensibilidad (PA↓ + FC↑ + SpO₂↓ + FR↑).</p>
-            </div>
+      <!-- Gráfico Unificado FC y SpO2 -->
+      <section class="section-container chart-full">
+        <div class="section-header-row">
+          <h2 class="section-label">Análisis de Tendencia Unificado (FC y SpO₂)</h2>
+          <div style="font-size: 0.7rem; display: flex; gap: 15px;">
+            <span style="color: var(--danger); font-weight: 700;">● FC (BPM)</span>
+            <span style="color: var(--primary); font-weight: 700;">● SpO2 (%)</span>
           </div>
-          <div class="bd">
-            <div class="kvs">
-              <div class="kv">
-                <div class="k">Severidad global</div>
-                <div class="v" id="v_sev">—</div>
-              </div>
-              <div class="kv">
-                <div class="k">Última actualización</div>
-                <div class="v"><span id="v_ts">—</span></div>
-              </div>
-              <div class="kv">
-                <div class="k">Baseline FC / SpO₂</div>
-                <div class="v"><span id="v_base1">—</span> <small id="v_base2">—</small></div>
-              </div>
-              <div class="kv">
-                <div class="k">Baseline PA / FR</div>
-                <div class="v"><span id="v_base3">—</span> <small id="v_base4">—</small></div>
-              </div>
-            </div>
+        </div>
+        <div class="chart-wrapper" style="height: 300px;">
+          <canvas id="chartHr"></canvas>
+        </div>
+      </section>
 
-            <div class="hr"></div>
-
-            <div class="alerts" id="alerts"></div>
-
-            <div class="hr"></div>
-
-            <div class="log">
-              <div class="head">
-                <span>Registro</span>
-                <span class="muted" id="logCount">0</span>
-              </div>
-              <div class="body" id="logBody"></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="hd">
-            <div>
-              <h2>ECG (1 derivación) | demo</h2>
-              <p>Placeholder elegante (ideal para pacientes de riesgo si el wearable lo soporta).</p>
-            </div>
-          </div>
-          <div class="bd">
-            <div class="chartWrap">
-              <canvas class="big" id="ecgChart" width="1100" height="220"></canvas>
-            </div>
-            <div class="footer-note">
-              Si tu pulsera/parche envía ECG, alimenta el arreglo <span style="font-family:var(--mono)">ecg[]</span> en el payload.
-            </div>
-          </div>
-        </section>
-      </aside>
     </div>
+
+    <aside class="dashboard-sidebar">
+      <section class="sidebar-section">
+        <h3 class="sidebar-label">Alertas y Eventos Clínicos</h3>
+        <div class="alert-log" id="alerts-list"></div>
+      </section>
+
+      <section class="sidebar-section">
+        <h3 class="sidebar-label">Métricas de Sesión</h3>
+        <div class="session-summary-card">
+          <div class="summary-item">
+            <span>BPM Máximo:</span>
+            <strong id="max-hr" style="color: var(--danger);">--</strong>
+          </div>
+          <div class="summary-item">
+            <span>SpO2 Promedio:</span>
+            <strong id="avg-spo2" style="color: var(--primary);">--</strong>
+          </div>
+        </div>
+        <button id="btn-save-database" class="btn-primary" style="background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border); font-size: 0.8rem; padding: 0.6rem; margin-top: 1rem;">
+          Exportar Historial Clínico
+        </button>
+      </section>
+    </aside>
+
   </div>
 
-  <script>
-    // =========================
-    //  SANARÉ | Wearable Monitor
-    //  - UI clara / elegante
-    //  - Demo streaming (simulación)
-    //  - WebSocket opcional
-    // =========================
-
-    const state = {
-      connected: false,
-      demo: false,
-      ws: null,
-      patient: "P-001",
-      points: [],
-      maxPoints: 1200,
-      baseline: null,
-      baselineWindow: 24,
-      activeAlerts: [],
-      ecgPhase: 0
-    };
-
-    const el = (id)=>document.getElementById(id);
-    const connDot = el("connDot");
-    const connText = el("connText");
-    const overallBadge = el("overallBadge");
-
-    const patientSel = el("patientSel");
-    const btnDemo = el("btnDemo");
-    const btnConnect = el("btnConnect");
-    const btnReset = el("btnReset");
-
-    const metricSel = el("metricSel");
-    const windowSel = el("windowSel");
-    const thrLow = el("thrLow");
-    const thrHigh = el("thrHigh");
-
-    const v = {
-      hr: el("v_hr"), spo2: el("v_spo2"), rr: el("v_rr"), bp: el("v_bp"), temp: el("v_temp"),
-      posture: el("v_posture"), motion: el("v_motion"),
-      sev: el("v_sev"), ts: el("v_ts"),
-      base1: el("v_base1"), base2: el("v_base2"), base3: el("v_base3"), base4: el("v_base4")
-    };
-
-    const b = {
-      hr: el("b_hr"), spo2: el("b_spo2"), rr: el("b_rr"), bp: el("b_bp"), temp: el("b_temp"), act: el("b_act")
-    };
-
-    const spark = {
-      hr: el("s_hr"), spo2: el("s_spo2"), rr: el("s_rr"), bp: el("s_bp"), temp: el("s_temp"), act: el("s_act")
-    };
-
-    const bigChart = el("bigChart");
-    const ecgChart = el("ecgChart");
-
-    const alertsBox = el("alerts");
-    const logBody = el("logBody");
-    const logCount = el("logCount");
-
-    function fmtTime(ts){
-      const d = new Date(ts);
-      const hh = String(d.getHours()).padStart(2,'0');
-      const mm = String(d.getMinutes()).padStart(2,'0');
-      const ss = String(d.getSeconds()).padStart(2,'0');
-      return `${hh}:${mm}:${ss}`;
-    }
-
-    function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
-    function avg(arr){ if(!arr.length) return null; let s=0; for(const x of arr) s+=x; return s/arr.length; }
-
-    function setConn(status){
-      state.connected = status;
-      connDot.className = "dot " + (status ? "ok" : (state.demo ? "warn" : "warn"));
-      connText.textContent = status ? "Conectado (tiempo real)" : "Sin conexión (modo demo)";
-    }
-
-    function addLog(line){
-      const div = document.createElement("div");
-      div.textContent = line;
-      logBody.prepend(div);
-      while(logBody.childNodes.length > 80) logBody.removeChild(logBody.lastChild);
-      logCount.textContent = String(logBody.childNodes.length);
-    }
-
-    const defaultThresholds = {
-      hr:   { low: 50,  high: 120 },
-      spo2: { low: 92,  high: 100 },
-      rr:   { low: 10,  high: 24 },
-      sys:  { low: 90,  high: 160 },
-      dia:  { low: 50,  high: 100 },
-      temp: { low: 35.5, high: 38.0 },
-      motion:{low: 0, high: 3}
-    };
-
-    function applyThresholdInputs(){
-      const m = metricSel.value;
-      const t = defaultThresholds[m] || {low:"",high:""};
-      thrLow.value = t.low;
-      thrHigh.value = t.high;
-    }
-
-    metricSel.addEventListener("change", ()=>{ applyThresholdInputs(); drawBig(); });
-    windowSel.addEventListener("change", drawBig);
-
-    thrLow.addEventListener("change", ()=>{
-      const m = metricSel.value;
-      defaultThresholds[m].low = Number(thrLow.value);
-      drawBig();
-    });
-
-    thrHigh.addEventListener("change", ()=>{
-      const m = metricSel.value;
-      defaultThresholds[m].high = Number(thrHigh.value);
-      drawBig();
-    });
-
-    patientSel.addEventListener("change", ()=>{
-      state.patient = patientSel.value;
-      addLog(`[${fmtTime(Date.now())}] Paciente seleccionado: ${state.patient}`);
-      hardReset();
-    });
-
-    btnReset.addEventListener("click", ()=>{
-      state.baseline = null;
-      addLog(`[${fmtTime(Date.now())}] Baseline reiniciado`);
-    });
-
-    function badgeFor(value, metric){
-      const t = defaultThresholds[metric];
-      if(!t || value == null) return {cls:"", text:"—"};
-      if(value < t.low) return {cls:"bad", text:"Bajo"};
-      if(value > t.high) return {cls:"warn", text:"Alto"};
-      return {cls:"good", text:"OK"};
-    }
-
-    function setBadge(elem, info){
-      elem.className = "badge " + (info.cls || "");
-      elem.textContent = info.text;
-    }
-
-    function overallFromAlerts(){
-      const hasBad = state.activeAlerts.some(a => a.level === "bad");
-      const hasWarn = state.activeAlerts.some(a => a.level === "warn");
-      if(hasBad) return {cls:"bad", text:"Crítico"};
-      if(hasWarn) return {cls:"warn", text:"Vigilancia"};
-      return {cls:"good", text:"Estable"};
-    }
-
-    function drawSpark(canvas, values, threshold=null){
-      const ctx = canvas.getContext("2d");
-      const w = canvas.width, h = canvas.height;
-      ctx.clearRect(0,0,w,h);
-      ctx.fillStyle = "rgba(242,182,173,.10)";
-      ctx.fillRect(0,0,w,h);
-      if(values.length < 2) return;
-
-      const minV = Math.min(...values);
-      const maxV = Math.max(...values);
-      const pad = 10;
-
-      function yOf(val){
-        if(maxV === minV) return h/2;
-        const t = (val - minV) / (maxV - minV);
-        return (h - pad) - t*(h - 2*pad);
-      }
-
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "rgba(182,106,100,.85)";
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      for(let i=0;i<values.length;i++){
-        const x = (i/(values.length-1))*(w-2*pad)+pad;
-        const y = yOf(values[i]);
-        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
-
-      const xEnd = (w-2*pad)+pad;
-      const yEnd = yOf(values[values.length-1]);
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath(); ctx.arc(xEnd,yEnd,7,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle = "rgba(182,106,100,.95)";
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(xEnd,yEnd,7,0,Math.PI*2); ctx.stroke();
-
-      if(threshold){
-        const {low, high} = threshold;
-        ctx.setLineDash([8,7]);
-        ctx.lineWidth = 2;
-        if(low != null){
-          ctx.strokeStyle = "rgba(220,38,38,.35)";
-          const y = yOf(low);
-          ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
-        }
-        if(high != null){
-          ctx.strokeStyle = "rgba(245,158,11,.35)";
-          const y = yOf(high);
-          ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
-        }
-        ctx.setLineDash([]);
-      }
-    }
-
-    function drawBig(){
-      const ctx = bigChart.getContext("2d");
-      const w = bigChart.width, h = bigChart.height;
-      ctx.clearRect(0,0,w,h);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0,0,w,h);
-
-      const mins = Number(windowSel.value);
-      const since = Date.now() - mins*60*1000;
-
-      const metric = metricSel.value;
-      const pts = state.points.filter(p => p.ts >= since);
-
-      const series = pts.map(p => ({ x: p.ts, y: p[metric] }))
-                        .filter(p => p.y != null);
-
-      const padL=55, padR=18, padT=18, padB=38;
-      ctx.strokeStyle = "rgba(229,231,235,.95)";
-      ctx.lineWidth = 1;
-      for(let i=0;i<=4;i++){
-        const y = padT + i*((h-padT-padB)/4);
-        ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
-      }
-
-      if(series.length < 2){
-        ctx.fillStyle = "rgba(107,114,128,.9)";
-        ctx.font = "14px system-ui";
-        ctx.fillText("Esperando datos…", padL, padT+24);
-        return;
-      }
-
-      const ys = series.map(s=>s.y);
-      let minY = Math.min(...ys), maxY = Math.max(...ys);
-      if(minY === maxY){ minY -= 1; maxY += 1; }
-      const yPad = (maxY - minY) * 0.10;
-      minY -= yPad; maxY += yPad;
-
-      const x0 = series[0].x, x1 = series[series.length-1].x;
-      const xOf = (x)=> padL + ((x - x0) / (x1 - x0))*(w-padL-padR);
-      const yOf = (y)=> (h-padB) - ((y - minY) / (maxY - minY))*(h-padT-padB);
-
-      const t = defaultThresholds[metric];
-      const low = t?.low, high = t?.high;
-      ctx.setLineDash([10,7]);
-      ctx.lineWidth = 2;
-      if(low != null){
-        ctx.strokeStyle = "rgba(220,38,38,.35)";
-        const y = yOf(low);
-        ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
-      }
-      if(high != null){
-        ctx.strokeStyle = "rgba(245,158,11,.35)";
-        const y = yOf(high);
-        ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
-      }
-      ctx.setLineDash([]);
-
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "rgba(182,106,100,.9)";
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      for(let i=0;i<series.length;i++){
-        const px = xOf(series[i].x);
-        const py = yOf(series[i].y);
-        if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-      }
-      ctx.stroke();
-
-      const last = series[series.length-1];
-      const lx = xOf(last.x), ly = yOf(last.y);
-      ctx.fillStyle = "#fff";
-      ctx.beginPath(); ctx.arc(lx,ly,7,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle = "rgba(182,106,100,.95)";
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(lx,ly,7,0,Math.PI*2); ctx.stroke();
-
-      ctx.fillStyle = "rgba(31,41,55,.95)";
-      ctx.font = "700 13px system-ui";
-      const labelMap = {
-        hr:"FC (lpm)", spo2:"SpO₂ (%)", rr:"FR (rpm)", sys:"PA Sistólica", dia:"PA Diastólica", temp:"Temp (°C)", motion:"Actividad (0-3)"
-      };
-      ctx.fillText(labelMap[metric] || metric, padL, 14);
-    }
-
-    function drawECG(){
-      const ctx = ecgChart.getContext("2d");
-      const w = ecgChart.width, h = ecgChart.height;
-      ctx.clearRect(0,0,w,h);
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0,0,w,h);
-
-      ctx.strokeStyle = "rgba(229,231,235,.9)";
-      ctx.lineWidth = 1;
-      for(let x=0;x<w;x+=55){
-        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
-      }
-      for(let y=0;y<h;y+=40){
-        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
-      }
-
-      const N = 500;
-      ctx.strokeStyle = "rgba(182,106,100,.95)";
-      ctx.lineWidth = 3;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      for(let i=0;i<N;i++){
-        const x = (i/(N-1))*w;
-        const t = state.ecgPhase + i*0.06;
-        let y = Math.sin(t)*0.18;
-        const mod = (t % (Math.PI*2));
-        if(mod < 0.12) y += 1.25*(1 - (mod/0.12));
-        y += (Math.sin(t*2.3)*0.05);
-        const yy = h/2 - y*(h*0.28);
-        if(i===0) ctx.moveTo(x,yy); else ctx.lineTo(x,yy);
-      }
-      ctx.stroke();
-      state.ecgPhase += 0.10;
-    }
-
-    function computeBaseline(){
-      if(state.baseline) return state.baseline;
-      const n = state.baselineWindow;
-      if(state.points.length < n) return null;
-      const last = state.points.slice(-n);
-      const base = {
-        hr: avg(last.map(p=>p.hr).filter(x=>x!=null)),
-        spo2: avg(last.map(p=>p.spo2).filter(x=>x!=null)),
-        rr: avg(last.map(p=>p.rr).filter(x=>x!=null)),
-        sys: avg(last.map(p=>p.sys).filter(x=>x!=null)),
-        dia: avg(last.map(p=>p.dia).filter(x=>x!=null)),
-        temp: avg(last.map(p=>p.temp).filter(x=>x!=null))
-      };
-      state.baseline = base;
-      addLog(`[${fmtTime(Date.now())}] Baseline calculado (ventana: ${n} muestras)`);
-      return base;
-    }
-
-    function pushAlert(level, title, detail){
-      const ts = Date.now();
-      const key = title + "|" + detail;
-      const recently = state.activeAlerts.find(a => a.key === key && (ts - a.ts) < 45_000);
-      if(recently) return;
-
-      state.activeAlerts.unshift({ts, level, title, detail, key});
-      state.activeAlerts = state.activeAlerts.slice(0, 12);
-      addLog(`[${fmtTime(ts)}] ALERTA ${level.toUpperCase()}: ${title} — ${detail}`);
-      renderAlerts();
-    }
-
-    function renderAlerts(){
-      alertsBox.innerHTML = "";
-      if(state.activeAlerts.length === 0){
-        const empty = document.createElement("div");
-        empty.className = "alert good";
-        empty.innerHTML = `<div class="top"><div class="title">Sin alertas activas</div><div class="meta">${fmtTime(Date.now())}</div></div>
-          <div class="meta">Monitoreo en curso.</div>`;
-        alertsBox.appendChild(empty);
-      }else{
-        for(const a of state.activeAlerts){
-          const div = document.createElement("div");
-          div.className = "alert " + a.level;
-          div.innerHTML = `
-            <div class="top">
-              <div class="title">${a.title}</div>
-              <div class="meta">${fmtTime(a.ts)}</div>
-            </div>
-            <div class="meta">${a.detail}</div>
-          `;
-          alertsBox.appendChild(div);
-        }
-      }
-
-      const overall = overallFromAlerts();
-      overallBadge.className = "badge " + overall.cls;
-      overallBadge.textContent = overall.text;
-      v.sev.textContent = overall.text;
-    }
-
-    function evaluate(point){
-      const checks = [["hr","FC"],["spo2","SpO₂"],["rr","FR"],["temp","Temp"]];
-      for(const [k,label] of checks){
-        const t = defaultThresholds[k];
-        const val = point[k];
-        if(val == null || !t) continue;
-        if(val < t.low) pushAlert("bad", `${label} bajo`, `${label}=${val} (umbral<${t.low})`);
-        else if(val > t.high) pushAlert("warn", `${label} alto`, `${label}=${val} (umbral>${t.high})`);
-      }
-
-      if(point.sys != null){
-        const t = defaultThresholds.sys;
-        if(point.sys < t.low) pushAlert("bad","Hipotensión", `PA sistólica=${point.sys} (umbral<${t.low})`);
-        else if(point.sys > t.high) pushAlert("warn","PA sistólica alta", `PA sistólica=${point.sys} (umbral>${t.high})`);
-      }
-      if(point.dia != null){
-        const t = defaultThresholds.dia;
-        if(point.dia < t.low) pushAlert("warn","PA diastólica baja", `PA diastólica=${point.dia} (umbral<${t.low})`);
-        else if(point.dia > t.high) pushAlert("warn","PA diastólica alta", `PA diastólica=${point.dia} (umbral>${t.high})`);
-      }
-
-      const base = computeBaseline();
-      if(!base) return;
-
-      const hrUp = (point.hr != null && base.hr != null) ? (point.hr - base.hr) : null;
-      const spo2Down = (point.spo2 != null && base.spo2 != null) ? (base.spo2 - point.spo2) : null;
-      const rrUp = (point.rr != null && base.rr != null) ? (point.rr - base.rr) : null;
-      const sysDown = (point.sys != null && base.sys != null) ? (base.sys - point.sys) : null;
-
-      const c1 = sysDown != null && sysDown >= 20;
-      const c2 = hrUp != null && hrUp >= 20;
-      const c3 = spo2Down != null && spo2Down >= 3;
-      const c4 = rrUp != null && rrUp >= 6;
-
-      const score = [c1,c2,c3,c4].filter(Boolean).length;
-
-      if(score >= 3){
-        pushAlert("bad","Posible reacción aguda", `Cambio vs baseline: PA↓${sysDown?.toFixed(0)} / FC↑${hrUp?.toFixed(0)} / SpO₂↓${spo2Down?.toFixed(1)} / FR↑${rrUp?.toFixed(0)}`);
-      }else if(score === 2){
-        pushAlert("warn","Vigilancia: cambios sugestivos", `Cambios vs baseline detectados (2 criterios).`);
-      }
-    }
-
-    function updateUI(point){
-      v.ts.textContent = fmtTime(point.ts);
-      v.hr.textContent = point.hr?.toFixed(0) ?? "—";
-      v.spo2.textContent = point.spo2?.toFixed(0) ?? "—";
-      v.rr.textContent = point.rr?.toFixed(0) ?? "—";
-      v.bp.textContent = (point.sys != null && point.dia != null) ? `${point.sys.toFixed(0)}/${point.dia.toFixed(0)}` : "—/—";
-      v.temp.textContent = point.temp?.toFixed(1) ?? "—";
-      v.posture.textContent = point.posture ?? "—";
-      v.motion.textContent = point.motion != null ? `mov:${point.motion.toFixed(1)}` : "—";
-
-      setBadge(b.hr, badgeFor(point.hr, "hr"));
-      setBadge(b.spo2, badgeFor(point.spo2, "spo2"));
-      setBadge(b.rr, badgeFor(point.rr, "rr"));
-
-      const bpInfo = point.sys == null ? {cls:"", text:"—"} : badgeFor(point.sys,"sys");
-      setBadge(b.bp, bpInfo);
-      setBadge(b.temp, badgeFor(point.temp, "temp"));
-
-      if(point.motion == null){
-        setBadge(b.act, {cls:"", text:"—"});
-      }else{
-        const info = badgeFor(point.motion, "motion");
-        info.text = (point.motion < 1 ? "Baja" : point.motion < 2 ? "Media" : "Alta");
-        info.cls = point.motion >= 2.2 ? "warn" : "good";
-        setBadge(b.act, info);
-      }
-
-      const base = computeBaseline();
-      if(base){
-        v.base1.textContent = `FC ${base.hr?.toFixed(0) ?? "—"}`;
-        v.base2.textContent = `SpO₂ ${base.spo2?.toFixed(0) ?? "—"}%`;
-        v.base3.textContent = `PA ${base.sys?.toFixed(0) ?? "—"}/${base.dia?.toFixed(0) ?? "—"}`;
-        v.base4.textContent = `FR ${base.rr?.toFixed(0) ?? "—"} rpm`;
-      }else{
-        v.base1.textContent = "Calculando…";
-        v.base2.textContent = "";
-        v.base3.textContent = "";
-        v.base4.textContent = "";
-      }
-
-      const lastN = 60;
-      const slice = state.points.slice(-lastN);
-
-      drawSpark(spark.hr,   slice.map(p=>p.hr).filter(x=>x!=null), defaultThresholds.hr);
-      drawSpark(spark.spo2, slice.map(p=>p.spo2).filter(x=>x!=null), defaultThresholds.spo2);
-      drawSpark(spark.rr,   slice.map(p=>p.rr).filter(x=>x!=null), defaultThresholds.rr);
-      drawSpark(spark.bp,   slice.map(p=>p.sys).filter(x=>x!=null), defaultThresholds.sys);
-      drawSpark(spark.temp, slice.map(p=>p.temp).filter(x=>x!=null), defaultThresholds.temp);
-      drawSpark(spark.act,  slice.map(p=>p.motion).filter(x=>x!=null), defaultThresholds.motion);
-
-      drawBig();
-      drawECG();
-    }
-
-    function handleIncoming(payload){
-      const p = normalizePayload(payload);
-      if(!p) return;
-      if(p.patient && p.patient !== state.patient) return;
-
-      state.points.push(p);
-      if(state.points.length > state.maxPoints) state.points.shift();
-
-      evaluate(p);
-      updateUI(p);
-    }
-
-    function normalizePayload(payload){
-      try{
-        const ts = payload.ts ?? Date.now();
-        return {
-          ts,
-          patient: payload.patient ?? state.patient,
-          hr: payload.hr != null ? Number(payload.hr) : null,
-          spo2: payload.spo2 != null ? Number(payload.spo2) : null,
-          rr: payload.rr != null ? Number(payload.rr) : null,
-          sys: payload.sys != null ? Number(payload.sys) : null,
-          dia: payload.dia != null ? Number(payload.dia) : null,
-          temp: payload.temp != null ? Number(payload.temp) : null,
-          motion: payload.motion != null ? Number(payload.motion) : null,
-          posture: payload.posture ?? null,
-          ecg: Array.isArray(payload.ecg) ? payload.ecg : null
-        };
-      }catch(e){
-        addLog(`[${fmtTime(Date.now())}] Error payload: ${e.message}`);
-        return null;
-      }
-    }
-
-    let demoTimer = null;
-
-    function demoStart(){
-      if(state.demo) return;
-      state.demo = true;
-      btnDemo.textContent = "Detener demo";
-      setConn(false);
-      addLog(`[${fmtTime(Date.now())}] Demo iniciado`);
-
-      let hr = 86, spo2 = 97, rr = 16, sys = 122, dia = 78, temp = 36.7, motion = 0.3;
-      let posture = "Sentado";
-      let tick = 0;
-
-      demoTimer = setInterval(()=>{
-        tick++;
-
-        hr += (Math.random()-0.5)*3.2;
-        spo2 += (Math.random()-0.5)*0.6;
-        rr += (Math.random()-0.5)*1.2;
-        sys += (Math.random()-0.5)*3.5;
-        dia += (Math.random()-0.5)*2.2;
-        temp += (Math.random()-0.5)*0.06;
-        motion = clamp(motion + (Math.random()-0.5)*0.25, 0, 3);
-
-        if(motion < 0.7) posture = "Sentado";
-        else if(motion < 1.8) posture = "De pie";
-        else posture = "Moviéndose";
-
-        if(tick === 60){
-          addLog(`[${fmtTime(Date.now())}] (demo) Simulando evento: reacción aguda`);
-        }
-        if(tick >= 60 && tick <= 85){
-          sys -= 1.2;
-          hr += 1.0;
-          spo2 -= 0.12;
-          rr += 0.25;
-          motion = 0.4;
-          posture = "Sentado";
-        }
-
-        const payload = {
-          ts: Date.now(),
-          patient: state.patient,
-          hr: clamp(hr, 45, 160),
-          spo2: clamp(spo2, 85, 100),
-          rr: clamp(rr, 8, 35),
-          sys: clamp(sys, 70, 190),
-          dia: clamp(dia, 40, 120),
-          temp: clamp(temp, 35.0, 39.5),
-          motion,
-          posture
-        };
-        handleIncoming(payload);
-      }, 5000);
-    }
-
-    function demoStop(){
-      state.demo = false;
-      btnDemo.textContent = "Iniciar demo";
-      if(demoTimer) clearInterval(demoTimer);
-      demoTimer = null;
-      addLog(`[${fmtTime(Date.now())}] Demo detenido`);
-    }
-
-    btnDemo.addEventListener("click", ()=>{
-      state.demo ? demoStop() : demoStart();
-    });
-
-    const WS_URL = ""; // ejemplo: "wss://tu-servidor.com/wearable"
-
-    function wsConnect(){
-      if(!WS_URL){
-        addLog(`[${fmtTime(Date.now())}] WS_URL vacío. Configura la URL en el código.`);
-        return;
-      }
-      try{
-        state.ws = new WebSocket(WS_URL);
-        state.ws.onopen = ()=>{
-          setConn(true);
-          addLog(`[${fmtTime(Date.now())}] WebSocket conectado`);
-        };
-        state.ws.onclose = ()=>{
-          setConn(false);
-          addLog(`[${fmtTime(Date.now())}] WebSocket desconectado`);
-        };
-        state.ws.onerror = ()=>{
-          setConn(false);
-          addLog(`[${fmtTime(Date.now())}] Error WebSocket`);
-        };
-        state.ws.onmessage = (evt)=>{
-          try{
-            const data = JSON.parse(evt.data);
-            handleIncoming(data);
-          }catch(e){
-            addLog(`[${fmtTime(Date.now())}] WS parse error: ${e.message}`);
-          }
-        };
-      }catch(e){
-        addLog(`[${fmtTime(Date.now())}] WS connect error: ${e.message}`);
-      }
-    }
-
-    btnConnect.addEventListener("click", ()=>{
-      wsConnect();
-    });
-
-    function hardReset(){
-      state.points = [];
-      state.activeAlerts = [];
-      state.baseline = null;
-      renderAlerts();
-      drawBig();
-      drawECG();
-
-      for(const k of ["hr","spo2","rr","temp"]){ v[k].textContent="—"; }
-      v.bp.textContent="—/—";
-      v.posture.textContent="—";
-      v.motion.textContent="—";
-      v.ts.textContent="—";
-      v.sev.textContent="—";
-      overallBadge.className = "badge";
-      overallBadge.textContent = "Sin evaluación";
-    }
-
-    function init(){
-      applyThresholdInputs();
-      renderAlerts();
-      drawBig();
-      drawECG();
-      addLog(`[${fmtTime(Date.now())}] Interfaz lista (tema claro Sanaré).`);
-    }
-
-    init();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
