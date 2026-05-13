@@ -11,6 +11,10 @@
   
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -21,6 +25,13 @@
       <div class="clinical-logo">
         <span class="logo-text-bold">SANARÉ</span>
         <span class="logo-subtitle">MONITOR DE SIGNOS VITALES (OHR)</span>
+      </div>
+      
+      <!-- Selector de Paciente Firestore -->
+      <div class="patient-selector-container">
+        <select id="patient-select" class="patient-select-dropdown">
+          <option value="">Cargando lista de pacientes...</option>
+        </select>
       </div>
     </div>
     

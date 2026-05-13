@@ -35,10 +35,43 @@ let hrHistory = [], spo2History = [];
 let chartUnified;
 let tLabels = [], dHr = [], dSpo2 = [];
 
+// ============================================
+// CONFIGURACIÓN FIREBASE (ACTUALIZADA)
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCru7dXkG1XmUAHEXzUeeygdN1je4vOUMA",
+  authDomain: "metricas-pulsera.firebaseapp.com",
+  projectId: "metricas-pulsera",
+  storageBucket: "metricas-pulsera.firebasestorage.app",
+  messagingSenderId: "1075067181635",
+  appId: "1:1075067181635:android:72b9649281249d020792f6"
+};
+
+let db;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  console.log("Firebase initialized successfully");
+} catch (e) {
+  console.error("Firebase initialization failed:", e);
+}
+let unsubscribePatient = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   initUnifiedChart();
   
-  // 1. Intentar cargar paciente desde la interfaz pasada (localStorage)
+  // Cargar lista de pacientes de Firestore
+  loadPatientsList();
+
+  // Escuchar selección de paciente
+  document.getElementById('patient-select').addEventListener('change', (e) => {
+    const patientId = e.target.value;
+    if (patientId) {
+      subscribeToPatient(patientId);
+    }
+  });
+
+  // 1. Intentar cargar paciente desde la interfaz pasada (localStorage - legacy)
   syncPatientData();
 
   // Escuchar cambios en otras pestañas (si registran al paciente en el panel principal)
@@ -107,7 +140,10 @@ async function syncPatientData() {
 }
 
 async function connectPolarBLE() {
-  if (!navigator.bluetooth) return;
+  if (!navigator.bluetooth) {
+    logEvent('warning', "Bluetooth no disponible en este navegador/dispositivo.");
+    return;
+  }
   try {
     deviceConnectionStateText.innerText = 'Buscando...';
     bluetoothDevice = await navigator.bluetooth.requestDevice({
@@ -141,9 +177,100 @@ async function connectPolarBLE() {
   }
 }
 
-function updateDashboard(hr) {
+/**
+ * Carga la lista de pacientes registrados en Firestore
+ */
+function loadPatientsList() {
+  console.log("Iniciando carga de lista de pacientes...");
+  const select = document.getElementById('patient-select');
+  
+  db.collection('patients').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+    console.log(`Pacientes recibidos: ${snapshot.size} documentos`);
+    
+    // Guardar valor seleccionado actual
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">Seleccionar Paciente...</option>';
+    
+    if (snapshot.empty) {
+      const opt = document.createElement('option');
+      opt.innerText = "No hay pacientes registrados";
+      opt.disabled = true;
+      select.appendChild(opt);
+      logEvent('warning', "No se encontraron pacientes en Firestore.");
+      return;
+    }
+
+    snapshot.forEach(doc => {
+      const p = doc.data();
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.innerText = `${p.name || 'Sin nombre'} (${p.id || doc.id})`;
+      select.appendChild(opt);
+    });
+    
+    // Restaurar selección si aún existe
+    select.value = currentVal;
+    
+    if (snapshot.size > 0) {
+      logEvent('success', `${snapshot.size} pacientes listos para monitoreo.`);
+    }
+  }, err => {
+    console.error("Error en Firestore (loadPatientsList):", err);
+    logEvent('error', `Error de base de datos: ${err.message}`);
+    
+    // Si falla el orden por timestamp (falta índice), intentar sin él
+    if (err.message.includes('index')) {
+      console.warn("Reintentando carga sin ordenamiento (falta índice)...");
+      db.collection('patients').onSnapshot(snapshot => {
+        // ... repetir lógica similar si es necesario, pero mejor manejarlo una vez
+      });
+    }
+  });
+}
+
+/**
+ * Se suscribe a los cambios de un paciente específico en tiempo real
+ */
+function subscribeToPatient(patientId) {
+  if (unsubscribePatient) unsubscribePatient();
+
+  logEvent('info', `Sincronizando con paciente: ${patientId}`);
+
+  unsubscribePatient = db.collection('patients').doc(patientId).onSnapshot(doc => {
+    if (!doc.exists) return;
+    const p = doc.data();
+    
+    // Actualizar UI del Paciente
+    displayPName.innerText = p.name || 'Paciente Sin Nombre';
+    displayPDetails.innerText = `Edad: ${p.age || '--'} años | Expediente: ${p.id || '--'}`;
+    avatarInitial.innerText = (p.name || 'P').charAt(0).toUpperCase();
+
+    // Actualizar Métricas si existen
+    if (p.metrics) {
+      const { hr, spo2, bpSys, bpDia } = p.metrics;
+      if (hr > 0) {
+        updateDashboard(hr, spo2);
+        
+        // Actualizar Presión Arterial
+        if (bpSys > 0 && bpDia > 0) {
+          valBp.innerText = `${bpSys}/${bpDia}`;
+          const { label, color } = classifyBP(bpSys, bpDia);
+          document.getElementById('bp-badge').innerText = label;
+          document.getElementById('bp-badge').style.color = color;
+          document.getElementById('bp-classification').innerText = `Remoto: ${bpSys}/${bpDia}`;
+        }
+      }
+    }
+  });
+}
+
+function updateDashboard(hr, spo2FromFirestore) {
   currentMeasurements.hr = hr;
-  if (currentMeasurements.spo2 === 0 || Math.random() > 0.8) {
+  
+  // Si viene de Firestore, usamos ese. Si no, calculamos uno (legacy logic)
+  if (spo2FromFirestore > 0) {
+    currentMeasurements.spo2 = spo2FromFirestore;
+  } else if (currentMeasurements.spo2 === 0 || Math.random() > 0.8) {
     currentMeasurements.spo2 = Math.max(95, Math.min(100, 98 + (Math.floor(Math.random() * 2) - 1)));
   }
   valHr.innerText = hr;

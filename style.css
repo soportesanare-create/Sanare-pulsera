@@ -31,7 +31,7 @@ body {
 /* Header */
 .main-header {
   background: white;
-  padding: 1rem 2rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
@@ -39,6 +39,14 @@ body {
   position: sticky;
   top: 0;
   z-index: 1000;
+  gap: 1rem;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
 }
 
 .clinical-logo {
@@ -59,6 +67,37 @@ body {
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.05em;
+}
+
+.patient-selector-container {
+  display: flex;
+  align-items: center;
+  margin-left: 30px;
+}
+
+.patient-select-dropdown {
+  background: #f8fafc;
+  border: 1.5px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-sec);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 220px;
+}
+
+.patient-select-dropdown:hover {
+  border-color: var(--primary);
+  background: #fff;
+}
+
+.patient-select-dropdown:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .header-right {
@@ -105,6 +144,42 @@ body {
 @media (max-width: 1024px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .header-left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .patient-selector-container {
+    margin-left: 0 !important;
+  }
+
+  .patient-select-dropdown {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .header-right {
+    justify-content: space-between;
+    width: 100%;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .patient-quick-info {
+    padding-left: 0;
+    border-left: none;
   }
 }
 
