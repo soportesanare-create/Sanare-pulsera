@@ -184,20 +184,36 @@ async function connectPolarBLE() {
 }
 
 /**
- * Carga la lista de pacientes registrados en Firestore
+ * Carga la lista de pacientes registrados en Firestore en tiempo real
  */
 function loadPatientsList() {
   console.log("Iniciando carga de lista de pacientes...");
   const select = document.getElementById('patient-select');
   
-  const handleSnapshot = (snapshot) => {
+  // Usamos onSnapshot sin orderBy para evitar errores de índice faltante
+  // Luego ordenamos en memoria
+  db.collection('patients').onSnapshot(snapshot => {
     console.log(`Pacientes recibidos: ${snapshot.size} documentos`);
     
     // Guardar valor seleccionado actual
     const currentVal = select.value;
+    
+    // Convertir a array para ordenar en memoria
+    let patients = [];
+    snapshot.forEach(doc => {
+      patients.push({ docId: doc.id, ...doc.data() });
+    });
+
+    // Ordenar por timestamp (descendente)
+    patients.sort((a, b) => {
+      const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+      const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+      return timeB - timeA;
+    });
+
     select.innerHTML = '<option value="">Seleccionar Paciente...</option>';
     
-    if (snapshot.empty) {
+    if (patients.length === 0) {
       const opt = document.createElement('option');
       opt.innerText = "No hay pacientes registrados";
       opt.disabled = true;
@@ -206,38 +222,31 @@ function loadPatientsList() {
       return;
     }
 
-    snapshot.forEach(doc => {
-      const p = doc.data();
+    patients.forEach(p => {
       const opt = document.createElement('option');
-      opt.value = doc.id;
-      opt.innerText = `${p.name || 'Sin nombre'} (${p.id || doc.id})`;
+      opt.value = p.docId;
+      opt.innerText = `${p.name || 'Sin nombre'} (${p.id || p.docId})`;
       select.appendChild(opt);
     });
     
-    // Restaurar selección si aún existe
-    select.value = currentVal;
-    
-    if (snapshot.size > 0) {
-      logEvent('success', `${snapshot.size} pacientes listos para monitoreo.`);
+    // Lógica de Selección Inteligente:
+    // 1. Si el usuario ya tenía uno seleccionado, lo mantenemos.
+    // 2. Si acaba de aparecer un paciente nuevo (el más reciente) y no hay nada seleccionado, lo seleccionamos.
+    if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+      select.value = currentVal;
+    } else if (patients.length > 0 && !currentVal) {
+      // Auto-seleccionar el más reciente si no hay selección previa
+      const latestPatient = patients[0];
+      select.value = latestPatient.docId;
+      subscribeToPatient(latestPatient.docId);
+      logEvent('success', `Auto-conectado con: ${latestPatient.name}`);
     }
-  };
-
-  const handleError = (err) => {
-    console.error("Error en Firestore (loadPatientsList):", err);
-    logEvent('error', `Error de base de datos: ${err.message}`);
     
-    // Si falla el orden por timestamp (falta índice), intentar sin él
-    if (err.message.includes('index') || err.message.includes('ORDER_BY')) {
-      console.warn("Reintentando carga sin ordenamiento (falta índice)...");
-      db.collection('patients').onSnapshot(handleSnapshot, e => {
-        console.error("Error crítico en Firestore:", e);
-        logEvent('error', "No se pudo cargar la lista de pacientes.");
-      });
-    }
-  };
-
-  // Intentar con ordenamiento primero
-  db.collection('patients').orderBy('timestamp', 'desc').onSnapshot(handleSnapshot, handleError);
+    logEvent('success', `${snapshot.size} pacientes sincronizados.`);
+  }, err => {
+    console.error("Error crítico en Firestore (loadPatientsList):", err);
+    logEvent('error', `Error de conexión: ${err.message}`);
+  });
 }
 
 /**
