@@ -108,6 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnEditBp.innerText = 'EDITAR';
   });
 
+  // Modo Enfoque
+  document.getElementById('btn-focus').addEventListener('click', () => {
+    document.body.classList.toggle('focus-mode');
+    logEvent('info', document.body.classList.contains('focus-mode') ? "Modo enfoque activado" : "Modo normal activado");
+  });
+
   // Re-conectar manualmente si se desea
   btnConnect.addEventListener('click', () => {
     if (!isConnected) connectPolarBLE();
