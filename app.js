@@ -190,7 +190,7 @@ function loadPatientsList() {
   console.log("Iniciando carga de lista de pacientes...");
   const select = document.getElementById('patient-select');
   
-  db.collection('patients').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+  const handleSnapshot = (snapshot) => {
     console.log(`Pacientes recibidos: ${snapshot.size} documentos`);
     
     // Guardar valor seleccionado actual
@@ -220,18 +220,24 @@ function loadPatientsList() {
     if (snapshot.size > 0) {
       logEvent('success', `${snapshot.size} pacientes listos para monitoreo.`);
     }
-  }, err => {
+  };
+
+  const handleError = (err) => {
     console.error("Error en Firestore (loadPatientsList):", err);
     logEvent('error', `Error de base de datos: ${err.message}`);
     
     // Si falla el orden por timestamp (falta índice), intentar sin él
-    if (err.message.includes('index')) {
+    if (err.message.includes('index') || err.message.includes('ORDER_BY')) {
       console.warn("Reintentando carga sin ordenamiento (falta índice)...");
-      db.collection('patients').onSnapshot(snapshot => {
-        // ... repetir lógica similar si es necesario, pero mejor manejarlo una vez
+      db.collection('patients').onSnapshot(handleSnapshot, e => {
+        console.error("Error crítico en Firestore:", e);
+        logEvent('error', "No se pudo cargar la lista de pacientes.");
       });
     }
-  });
+  };
+
+  // Intentar con ordenamiento primero
+  db.collection('patients').orderBy('timestamp', 'desc').onSnapshot(handleSnapshot, handleError);
 }
 
 /**
