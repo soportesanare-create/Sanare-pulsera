@@ -324,6 +324,7 @@ body {
 .hr-tile { border-top: 5px solid var(--danger); background: #fff1f2; }
 .spo2-tile { border-top: 5px solid var(--primary); background: #eff6ff; }
 .bp-tile { border-top: 5px solid var(--warning); background: #fffbeb; grid-column: span 1; }
+.temp-tile { border-top: 5px solid #f59e0b; background: #fffbeb; }
 
 .vital-tile {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);

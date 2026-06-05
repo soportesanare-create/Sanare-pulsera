@@ -30,10 +30,11 @@ let bluetoothDevice = null;
 let gattServer = null;
 let hrCharacteristic = null;
 let isConnected = false;
-let currentMeasurements = { hr: 0, spo2: 0, bpSys: 0, bpDia: 0 };
+let currentMeasurements = { hr: 0, spo2: 0, bpSys: 0, bpDia: 0, temp: 0 };
 let hrHistory = [], spo2History = [];
 let chartUnified;
 let tLabels = [], dHr = [], dSpo2 = [];
+let isManualSpo2 = false;
 
 // ============================================
 // CONFIGURACIÓN FIREBASE (ACTUALIZADA)
@@ -81,32 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Manual BP Logic
-  const btnEditBp = document.getElementById('btn-edit-bp');
-  const bpEditForm = document.getElementById('bp-edit-form');
-  const btnSaveBp = document.getElementById('btn-save-bp');
 
-  btnEditBp.addEventListener('click', () => {
-    const isVisible = bpEditForm.style.display === 'block';
-    bpEditForm.style.display = isVisible ? 'none' : 'block';
-    btnEditBp.innerText = isVisible ? 'EDITAR' : 'CERRAR';
-  });
-
-  btnSaveBp.addEventListener('click', () => {
-    const sys = parseInt(document.getElementById('inp-bp-sys').value);
-    const dia = parseInt(document.getElementById('inp-bp-dia').value);
-    if (!sys || !dia) return;
-    currentMeasurements.bpSys = sys;
-    currentMeasurements.bpDia = dia;
-    valBp.innerText = `${sys}/${dia}`;
-    const { label, color } = classifyBP(sys, dia);
-    document.getElementById('bp-badge').innerText = label;
-    document.getElementById('bp-badge').style.color = color;
-    document.getElementById('bp-classification').innerText = `Manual: ${sys}/${dia}`;
-    logEvent('info', `PA manual: ${sys}/${dia} mmHg`);
-    bpEditForm.style.display = 'none';
-    btnEditBp.innerText = 'EDITAR';
-  });
 
   // Modo Enfoque
   document.getElementById('btn-focus').addEventListener('click', () => {
@@ -118,6 +94,66 @@ document.addEventListener('DOMContentLoaded', () => {
   btnConnect.addEventListener('click', () => {
     if (!isConnected) connectPolarBLE();
     else disconnect();
+  });
+
+  // WhatsApp Share Logic
+  const btnShareWhatsapp = document.getElementById('btn-share-whatsapp');
+  if (btnShareWhatsapp) {
+    btnShareWhatsapp.addEventListener('click', () => {
+      const pName = displayPName.innerText;
+      const pDetails = displayPDetails.innerText;
+      const hr = currentMeasurements.hr || '--';
+      const spo2 = currentMeasurements.spo2 || '--';
+      const bpSys = currentMeasurements.bpSys || '--';
+      const bpDia = currentMeasurements.bpDia || '--';
+      const temp = currentMeasurements.temp || '--';
+      
+      const maxHr = document.getElementById('max-hr').innerText;
+      const avgSpo2 = document.getElementById('avg-spo2').innerText;
+
+      const message = `*Sanare Pro - Historial Clínico*\n` +
+                      `Paciente: ${pName}\n` +
+                      `Detalles: ${pDetails}\n\n` +
+                      `*Signos Vitales Actuales*\n` +
+                      `- FC: ${hr} bpm\n` +
+                      `- SpO2: ${spo2}%\n` +
+                      `- PA: ${bpSys}/${bpDia} mmHg\n` +
+                      `- Temp: ${temp} °C\n\n` +
+                      `*Métricas de Sesión*\n` +
+                      `- BPM Máximo: ${maxHr}\n` +
+                      `- SpO2 Promedio: ${avgSpo2}\n\n` +
+                      `Generado el: ${new Date().toLocaleString()}`;
+
+      const encodedMessage = encodeURIComponent(message);
+      window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+      logEvent('success', 'Historial enviado por WhatsApp');
+    });
+  }
+
+  // Exportar como imagen (html2canvas)
+  btnSaveRecord.addEventListener('click', async () => {
+    if (typeof html2canvas === 'undefined') {
+      logEvent('error', 'Librería html2canvas no cargada');
+      return;
+    }
+    const originalText = btnSaveRecord.innerText;
+    btnSaveRecord.innerText = 'Exportando...';
+    try {
+      const canvas = await html2canvas(document.body);
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `Sanare_Historial_${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      logEvent('success', 'Historial clínico exportado como imagen');
+    } catch (e) {
+      console.error(e);
+      logEvent('error', 'Error al exportar historial');
+    } finally {
+      btnSaveRecord.innerText = originalText;
+    }
   });
 });
 
@@ -291,7 +327,8 @@ function updateDashboard(hr, spo2FromFirestore) {
   // Si viene de Firestore, usamos ese. Si no, calculamos uno (legacy logic)
   if (spo2FromFirestore > 0) {
     currentMeasurements.spo2 = spo2FromFirestore;
-  } else if (currentMeasurements.spo2 === 0 || Math.random() > 0.8) {
+    isManualSpo2 = false;
+  } else if (currentMeasurements.spo2 === 0 || (!isManualSpo2 && Math.random() > 0.8)) {
     currentMeasurements.spo2 = Math.max(95, Math.min(100, 98 + (Math.floor(Math.random() * 2) - 1)));
   }
   valHr.innerText = hr;
@@ -311,10 +348,10 @@ function updateDashboard(hr, spo2FromFirestore) {
 function disconnect() {
   if (bluetoothDevice && bluetoothDevice.gatt.connected) bluetoothDevice.gatt.disconnect();
   isConnected = false;
-  statusIndicator.classList.remove('active');
-  btnConnect.style.background = '';
-  btnConnect.style.color = '';
-  deviceConnectionStateText.innerText = 'Sin Sensor';
+  statusIndicator.classList.add('active');
+  btnConnect.style.background = '#f0fdf4';
+  btnConnect.style.color = '#059669';
+  deviceConnectionStateText.innerText = 'Con sensor';
 }
 
 function logEvent(type, msg) {
