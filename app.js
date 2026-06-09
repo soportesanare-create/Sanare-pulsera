@@ -304,18 +304,35 @@ function subscribeToPatient(patientId) {
 
     // Actualizar Métricas si existen
     if (p.metrics) {
-      const { hr, spo2, bpSys, bpDia } = p.metrics;
+      const { hr, spo2, bpSys, bpDia, temp } = p.metrics;
       if (hr > 0) {
         updateDashboard(hr, spo2);
+      }
+      
+      // Actualizar Presión Arterial
+      if (bpSys > 0 && bpDia > 0) {
+        currentMeasurements.bpSys = bpSys;
+        currentMeasurements.bpDia = bpDia;
+        valBp.innerText = `${bpSys}/${bpDia}`;
+        const { label, color } = classifyBP(bpSys, bpDia);
+        document.getElementById('bp-badge').innerText = label;
+        document.getElementById('bp-badge').style.color = color;
+        document.getElementById('bp-classification').innerText = `Remoto: ${bpSys}/${bpDia}`;
+      }
+
+      // Actualizar Temperatura
+      if (temp > 0) {
+        currentMeasurements.temp = temp;
+        document.getElementById('val-temp').innerText = temp;
         
-        // Actualizar Presión Arterial
-        if (bpSys > 0 && bpDia > 0) {
-          valBp.innerText = `${bpSys}/${bpDia}`;
-          const { label, color } = classifyBP(bpSys, bpDia);
-          document.getElementById('bp-badge').innerText = label;
-          document.getElementById('bp-badge').style.color = color;
-          document.getElementById('bp-classification').innerText = `Remoto: ${bpSys}/${bpDia}`;
-        }
+        let tempLabel = 'NORMAL';
+        let tempColor = '#059669';
+        if (temp >= 38) { tempLabel = 'FIEBRE'; tempColor = '#dc2626'; }
+        else if (temp < 36) { tempLabel = 'HIPOTERMIA'; tempColor = '#2563eb'; }
+        
+        document.getElementById('temp-badge').innerText = tempLabel;
+        document.getElementById('temp-badge').style.color = tempColor;
+        document.getElementById('temp-classification').innerText = `Remoto: ${temp}°C`;
       }
     }
   });
