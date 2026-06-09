@@ -167,9 +167,7 @@ async function syncPatientData() {
     displayPName.innerText = patient.name || 'Paciente Sin Nombre';
     displayPDetails.innerText = `Edad: ${patient.age || '--'} años | Expediente: ${patient.id || '--'}`;
     avatarInitial.innerText = (patient.name || 'P').charAt(0).toUpperCase();
-    
-    logEvent('success', `Datos recibidos del panel: ${patient.name}`);
-    
+    console.log(`Datos recibidos del panel: ${patient.name}`);
     // Auto-conectar Bluetooth si no está conectado
     if (!isConnected) {
       setTimeout(connectPolarBLE, 1000);
@@ -177,7 +175,6 @@ async function syncPatientData() {
   } else {
     displayPName.innerText = "Esperando registro...";
     displayPDetails.innerText = "Registre al paciente en la interfaz principal";
-    logEvent('warning', "Sin datos de paciente. Use la interfaz de registro.");
   }
 }
 
@@ -275,23 +272,26 @@ function loadPatientsList() {
       const latestPatient = patients[0];
       select.value = latestPatient.docId;
       subscribeToPatient(latestPatient.docId);
-      logEvent('success', `Auto-conectado con: ${latestPatient.name}`);
     }
     
-    logEvent('success', `${snapshot.size} pacientes sincronizados.`);
+    // Solo log en consola, NO en el panel de alertas (para no spamear)
+    console.log(`${snapshot.size} pacientes sincronizados.`);
   }, err => {
     console.error("Error crítico en Firestore (loadPatientsList):", err);
     logEvent('error', `Error de conexión: ${err.message}`);
   });
 }
 
+let lastClinicalEventsCount = 0;
+
 /**
  * Se suscribe a los cambios de un paciente específico en tiempo real
  */
 function subscribeToPatient(patientId) {
   if (unsubscribePatient) unsubscribePatient();
+  lastClinicalEventsCount = 0;
 
-  logEvent('info', `Sincronizando con paciente: ${patientId}`);
+  console.log(`Sincronizando con paciente: ${patientId}`);
 
   unsubscribePatient = db.collection('patients').doc(patientId).onSnapshot(doc => {
     if (!doc.exists) return;
@@ -335,6 +335,33 @@ function subscribeToPatient(patientId) {
         document.getElementById('temp-classification').innerText = `Remoto: ${temp}°C`;
       }
     }
+
+    // Mostrar Eventos Clínicos (todos al suscribirse + nuevos en tiempo real)
+    if (p.clinicalEvents && Array.isArray(p.clinicalEvents) && p.clinicalEvents.length > 0) {
+      if (p.clinicalEvents.length > lastClinicalEventsCount) {
+        const startIdx = lastClinicalEventsCount;
+        for (let i = startIdx; i < p.clinicalEvents.length; i++) {
+          const ev = p.clinicalEvents[i];
+          if (ev.type === 'infusion') {
+            const lines = [
+              ev.sal    ? `<strong>Medicamento:</strong> ${ev.sal}` : '',
+              ev.gramos ? `<strong>Dosis:</strong> ${ev.gramos}` : '',
+              ev.dilucion ? `<strong>Dilución:</strong> ${ev.dilucion}` : '',
+              ev.tiempo   ? `<strong>Tiempo:</strong> ${ev.tiempo}` : ''
+            ].filter(Boolean).join('<br>');
+            logEvent('info', lines, '💉 INFUSIÓN');
+          } else if (ev.type === 'adverse_event') {
+            const lines = [
+              ev.esperado ? `<strong>Efecto esperado:</strong> ${ev.esperado}` : '',
+              ev.adversa  ? `<strong>Reacción adversa:</strong> ${ev.adversa}` : '',
+              ev.farmaco  ? `<strong>Medida / Tx:</strong> ${ev.farmaco}` : ''
+            ].filter(Boolean).join('<br>');
+            logEvent('error', lines, '⚠️ REACCIÓN ADVERSA');
+          }
+        }
+        lastClinicalEventsCount = p.clinicalEvents.length;
+      }
+    }
   });
 }
 
@@ -371,18 +398,22 @@ function disconnect() {
   deviceConnectionStateText.innerText = 'Con sensor';
 }
 
-function logEvent(type, msg) {
+function logEvent(type, msg, customLabel) {
   const card = document.createElement('div');
   card.className = `alert-card ${type}`;
+  
+  // Si se pasa un customLabel se usa; si no, se usa el tipo como fallback
+  const label = customLabel || type.toUpperCase();
+  
   card.innerHTML = `
     <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.6rem;">
-      <span>${type.toUpperCase()}</span>
+      <span>${label}</span>
       <span style="color: var(--text-muted);">${new Date().toLocaleTimeString()}</span>
     </div>
-    <div style="font-size: 0.75rem;">${msg}</div>
+    <div style="font-size: 0.75rem; line-height: 1.5;">${msg}</div>
   `;
   alertsList.prepend(card);
-  if (alertsList.children.length > 8) alertsList.removeChild(alertsList.lastChild);
+  if (alertsList.children.length > 20) alertsList.removeChild(alertsList.lastChild);
 }
 
 function initUnifiedChart() {
@@ -415,7 +446,9 @@ function updateChart(hr, spo2) {
 }
 
 function classifyBP(sys, dia) {
-  if (sys >= 140 || dia >= 90) return { label: 'HTA G1', color: '#dc2626' };
-  if (sys >= 130 || dia >= 80) return { label: 'ELEVADA', color: '#d97706' };
+  // Basado en ACC/AHA 2017 con ajuste clínico:
+  // 120/80 = Normal (la presion diastólica de 80 exacta es límite inferior de ELEVADA)
+  if (sys >= 140 || dia > 90) return { label: 'HTA G1', color: '#dc2626' };
+  if (sys >= 130 || dia > 80) return { label: 'ELEVADA', color: '#d97706' };
   return { label: 'NORMAL', color: '#059669' };
 }
