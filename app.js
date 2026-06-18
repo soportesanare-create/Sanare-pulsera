@@ -20,6 +20,7 @@ const maxHrEl = document.getElementById('max-hr');
 const avgSpo2El = document.getElementById('avg-spo2');
 
 // Patient Info Header
+const displayDName = document.getElementById('display-d-name');
 const displayPName = document.getElementById('display-p-name');
 const displayPDetails = document.getElementById('display-p-details');
 const avatarInitial = document.getElementById('avatar-initial');
@@ -298,6 +299,7 @@ function subscribeToPatient(patientId) {
     const p = doc.data();
     
     // Actualizar UI del Paciente
+    displayDName.innerText = p.doctorName ? `Médico: ${p.doctorName}` : '';
     displayPName.innerText = p.name || 'Paciente Sin Nombre';
     displayPDetails.innerText = `Edad: ${p.age || '--'} años | Expediente: ${p.id || '--'}`;
     avatarInitial.innerText = (p.name || 'P').charAt(0).toUpperCase();
@@ -357,6 +359,14 @@ function subscribeToPatient(patientId) {
               ev.farmaco  ? `<strong>Medida / Tx:</strong> ${ev.farmaco}` : ''
             ].filter(Boolean).join('<br>');
             logEvent('error', lines, '⚠️ REACCIÓN ADVERSA');
+          } else if (ev.type === 'emergency_alert') {
+            const lines = [
+              ev.comentario ? `<strong>Reporte:</strong> ${ev.comentario}` : ''
+            ].filter(Boolean).join('<br>');
+            logEvent('error', lines, '🚨 ALERTA CRÍTICA');
+            
+            // Also show browser alert for prominence
+            alert(`🚨 ALERTA CRÍTICA RECIENTE:\n${ev.comentario}`);
           }
         }
         lastClinicalEventsCount = p.clinicalEvents.length;
